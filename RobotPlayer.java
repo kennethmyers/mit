@@ -17,6 +17,14 @@ public class RobotPlayer {
     protected static Direction SOTH_EAST = Direction.SOUTH_EAST;
     protected static Direction SOUTH_WEST = Direction.SOUTH_WEST;
 
+    protected static RobotType ARCHON = RobotType.ARCHON;
+    protected static RobotType SOLDIER = RobotType.SOLDIER;
+    protected static RobotType TURRET = RobotType.TURRET;
+    protected static RobotType GUARD = RobotType.GUARD;
+    protected static RobotType VIPER = RobotType.VIPER;
+    protected static RobotType TTM = RobotType.TTM;
+    protected static RobotType SCOUT = RobotType.SCOUT;
+
     protected static RobotController rc = null;
     protected static Team myTeam = null;
     protected static Team enemyTeam = null;
@@ -51,7 +59,7 @@ public class RobotPlayer {
                 }
             } else if (myType == RobotType.SOLDIER) {
                 while (true) {
-                    Guard.playTurn();
+                    Soldier.playTurn();
                     Clock.yield();
                 }
             } else if (myType == RobotType.SCOUT) {
@@ -78,6 +86,23 @@ public class RobotPlayer {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    protected static MapLocation getLocationOfRobotWithLowestHP(RobotInfo[] robotInfos) {
+        MapLocation locationWithLowestHealthRobot = null;
+        double lowestHP = 999999.0;
+        for (RobotInfo robotInfo : robotInfos) {
+            if (robotInfo.health < lowestHP) {
+                lowestHP = robotInfo.health;
+                locationWithLowestHealthRobot = robotInfo.location;
+            }
+        }
+        return locationWithLowestHealthRobot;
+    }
+
+    protected static int numberOfRobotsAdjacentToMe() {
+        RobotInfo[] nearbyRobots = rc.senseNearbyRobots(1, myTeam);
+        return nearbyRobots.length;
     }
 
     protected static boolean afterEarlyGame(){
