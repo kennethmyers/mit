@@ -15,7 +15,9 @@ public class Archon extends RobotPlayer {
 
 
 
-    protected static ArrayList<LocationReport> reports = new ArrayList<LocationReport>();
+    protected static ArrayList<LocationReport> reports = new ArrayList<>();
+    //protected static Stack<MapLocation> orders = new Stack<>();
+    static MapLocation order = null;
     protected static int role = NO_ROLE;
 
     protected static void playTurn() {
@@ -38,7 +40,7 @@ public class Archon extends RobotPlayer {
                     i++;
                     int[] locationMessage = signals[i].getMessage();
                     MapLocation reportLocation = new MapLocation(locationMessage[X_COORDINATE],
-                                                                 locationMessage[Y_COORDINATE]);
+                            locationMessage[Y_COORDINATE]);
 
                     LocationReport report = new LocationReport(reportLocation, reportType, reportData, roundNumber);
                     if (! reports.contains(report)) {
@@ -47,12 +49,29 @@ public class Archon extends RobotPlayer {
                 }
             }
 
-            // TEST
-            try {
-                rc.broadcastMessageSignal(LEADER_COMMAND, MUSTER_AT_LOCATION, TRANSMISSION_RANGE);
-                rc.broadcastMessageSignal(myLocation.x + 5, myLocation.y + 13, TRANSMISSION_RANGE);
-            } catch (GameActionException e) {
-                e.printStackTrace();
+            if (order == null) {
+                for (LocationReport report : reports) {
+                    if (report.getReportType() == ZOMBIE_DEN_SIGNAL) {
+                        rc.setIndicatorString(1, "ZOMBIE DEN");
+                        MapLocation location = report.getReportLocation();
+                        order = location;
+                    }
+                }
+            }
+
+            if (order != null) {
+                if (rc.getRoundNum() % 5 == 0) {
+                    try {
+                        rc.broadcastMessageSignal(LEADER_COMMAND, MUSTER_AT_LOCATION, TRANSMISSION_RANGE);
+                        rc.broadcastMessageSignal(order.x, order.y, TRANSMISSION_RANGE);
+                    } catch (GameActionException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+
+            if (order != null) {
+                makeBestFirstMoveAndClearRubble(myLocation.directionTo(order));
             }
 
             rc.setIndicatorString(2, String.format("%d reports recieved form scouts: ", reports.size()));

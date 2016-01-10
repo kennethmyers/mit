@@ -18,7 +18,7 @@ public class Scout extends RobotPlayer {
             previousLocaions.add(myLocation);
         } else {
             MapLocation locationToCheck = myLocation.add(currentDirection);
-            for (int i = 0; i < mySensorRadius; i++) {
+            for (int i = 0; i < mySensorRadius - 1; i++) {
                 try {
                     if (! rc.onTheMap(locationToCheck)) {
                         currentDirection = currentDirection.rotateLeft().rotateLeft();
@@ -34,7 +34,6 @@ public class Scout extends RobotPlayer {
 
 
         MapLocation[] locationsToScan = myLocation.getAllMapLocationsWithinRadiusSq(myLocation, mySensorRadius);
-        ArrayList<MapLocation> locationsWithParts = new ArrayList<MapLocation>();
         for (MapLocation location : locationsToScan) {
             if (rc.senseParts(location) > 0 && ! reportedLocations.contains(location)) {
                 try {
@@ -61,11 +60,12 @@ public class Scout extends RobotPlayer {
             }
         }
 
-        RobotInfo[] enemyRobots = rc.senseNearbyRobots(mySensorRadius, enemyTeam);
+        RobotInfo[] enemyRobots = rc.senseNearbyRobots(mySensorRadius, Team.ZOMBIE);
         for (RobotInfo robotInfo : enemyRobots) {
             MapLocation location = robotInfo.location;
             if (! reportedLocations.contains(location) && robotInfo.type == RobotType.ZOMBIEDEN) {
                 try{
+                    rc.setIndicatorString(0, "ZOMBIE DEN FOUND");
                     rc.broadcastMessageSignal(ZOMBIE_DEN_SIGNAL, robotInfo.ID, TRANSMISSION_RANGE);
                     rc.broadcastMessageSignal(location.x, location.y, TRANSMISSION_RANGE);
                 } catch (GameActionException e) {

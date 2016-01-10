@@ -61,6 +61,8 @@ public class RobotPlayer {
     protected static final RobotType TTM = RobotType.TTM;
     protected static final RobotType SCOUT = RobotType.SCOUT;
 
+    protected static MapLocation spawnLocation;
+
     protected static RobotController rc = null;
     protected static Team myTeam = null;
     protected static Team enemyTeam = null;
@@ -84,6 +86,7 @@ public class RobotPlayer {
         myType = rc.getType();
         attackRadius = myType.attackRadiusSquared;
         mySensorRadius = myType.sensorRadiusSquared;
+        spawnLocation = rc.getLocation();
 
         try {
             while (true) {
@@ -179,7 +182,7 @@ public class RobotPlayer {
         MapLocation[] locationsToCheckForParts = myLocation.getAllMapLocationsWithinRadiusSq(myLocation,
                                                                                             radiusToSearchForParts);
 
-        ArrayList<MapLocation> locationWithParts = new ArrayList<MapLocation>();
+        ArrayList<MapLocation> locationWithParts = new ArrayList<>();
         for (MapLocation location : locationsToCheckForParts) {
             if (rc.senseParts(location) > 0) {
                 locationWithParts.add(location);

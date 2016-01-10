@@ -1,10 +1,11 @@
 package team168;
 
 
-import battlecode.common.MapLocation;
-import battlecode.common.Signal;
+import battlecode.common.*;
 
 public class Soldier extends RobotPlayer {
+
+    protected static MapLocation order = null;
 
     protected static void playTurn() {
 
@@ -16,11 +17,33 @@ public class Soldier extends RobotPlayer {
                     i++;
                     message = signals[i].getMessage();
 
-                    MapLocation newLocation = new MapLocation(message[0], message[1]);
-
-                    makeBestFirstMoveAndClearRubble(myLocation.directionTo(newLocation));
+                    order = new MapLocation(message[0], message[1]);
                 }
             }
+        }
+        if (order != null) {
+            makeBestFirstMoveAndClearRubble(myLocation.directionTo(order));
+        }
+
+
+
+        // TODO TEST
+        RobotInfo[] enemiesInRange = getAllHostilesWithinRange(attackRadius);
+        if (enemiesInRange.length > 0) {
+            if (rc.isWeaponReady()) {
+                try {
+                    rc.attackLocation(getLocationOfRobotWithLowestHP(enemiesInRange));
+                    Clock.yield();
+                } catch (GameActionException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        RobotInfo[] enemiesInSensorRange = getAllHostilesWithinRange(mySensorRadius);
+        if (enemiesInSensorRange.length > 0) {
+            rc.setIndicatorString(0, "Enemies detected " +enemiesInSensorRange.length );
+            makeBestFirstMoveAndClearRubble(myLocation.directionTo(enemiesInSensorRange[0].location));
         }
     }
 }
