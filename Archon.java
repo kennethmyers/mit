@@ -15,7 +15,7 @@ public class Archon extends RobotPlayer {
 
 
 
-    protected static ArrayList<MapLocation> locationsOfInterest = new ArrayList<MapLocation>();
+    protected static ArrayList<LocationReport> reports = new ArrayList<LocationReport>();
     protected static int role = NO_ROLE;
 
     protected static void playTurn() {
@@ -31,36 +31,23 @@ public class Archon extends RobotPlayer {
             Signal[] signals = getAlliedComplexSignalsOnly();
             for (int i = 0; i < signals.length; i++) {
                 int[] message = signals[i].getMessage();
-                if (message[0] == PARTS_SIGNAL) {
-                    int amountOfParts = message[PARTS_AMOUNT];
-
-                    //rc.setIndicatorString(1, "Incoming transmission from:" + signals[i].getRobotID());
-
-                    i++;
-                    int[] locationMessage = signals[i].getMessage();
-                    //rc.setIndicatorString(2, String.format("Parts %d found at: %d %d", amountOfParts, locationMessage[0], locationMessage[1]));
-
-                    MapLocation locationToAdd = new MapLocation(locationMessage[0], locationMessage[1]);
-                    if (! locationsOfInterest.contains(locationToAdd)) {
-                        locationsOfInterest.add(locationToAdd);
-                    }
-                }
-                else if (message[0] == ZOMBIE_DEN_SIGNAL) {
-                    int amountOfParts = message[PARTS_AMOUNT];
-
-                    //rc.setIndicatorString(1, "Incoming transmission from:" + signals[i].getRobotID());
+                int reportType = message[REPORT_TYPE_INDEX];
+                if (VALID_SIGNAL_TYPES.contains(reportType)) {
+                    int reportData = message[REPORT_DATA_INDEX];
 
                     i++;
                     int[] locationMessage = signals[i].getMessage();
-                    rc.setIndicatorString(2, String.format("Zombie Den found at: %d %d",  locationMessage[0], locationMessage[1]));
+                    MapLocation reportLocation = new MapLocation(locationMessage[X_COORDINATE],
+                                                                 locationMessage[Y_COORDINATE]);
 
-                    MapLocation locationToAdd = new MapLocation(locationMessage[0], locationMessage[1]);
-                    if (! locationsOfInterest.contains(locationToAdd)) {
-                        locationsOfInterest.add(locationToAdd);
+                    LocationReport report = new LocationReport(reportLocation, reportType, reportData, roundNumber);
+                    if (! reports.contains(report)) {
+                        reports.add(report);
                     }
                 }
             }
 
+            // TEST
             try {
                 rc.broadcastMessageSignal(LEADER_COMMAND, MUSTER_AT_LOCATION, TRANSMISSION_RANGE);
                 rc.broadcastMessageSignal(myLocation.x + 5, myLocation.y + 13, TRANSMISSION_RANGE);
@@ -68,9 +55,7 @@ public class Archon extends RobotPlayer {
                 e.printStackTrace();
             }
 
-            rc.setIndicatorString(2, String.format("%d reports recieved form scouts: ", locationsOfInterest.size()));
-
-
+            rc.setIndicatorString(2, String.format("%d reports recieved form scouts: ", reports.size()));
         }
 
         if (role == FOLLOWER) {

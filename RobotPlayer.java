@@ -5,6 +5,7 @@ import scala.Array;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 
 public class RobotPlayer {
 
@@ -24,9 +25,21 @@ public class RobotPlayer {
     protected static final int ENEMY_ARCHON_SIGNAL = 2;
     protected static final int ZOMBIE_DEN_SIGNAL = 3;
 
+
+    protected static HashSet<Integer> VALID_SIGNAL_TYPES =
+            new HashSet<Integer>(Arrays.asList(new Integer[]{PARTS_SIGNAL, NUETRAL_BOT_SIGNAL, ZOMBIE_DEN_SIGNAL}));
+
+    protected static int REPORT_TYPE_INDEX = 0;
+    protected static int REPORT_DATA_INDEX = 1;
+
+    protected static int X_COORDINATE = 0;
+    protected static int Y_COORDINATE = 1;
+
     // Lead archon command signals
     protected static final int LEADER_COMMAND = 10;
     protected static final int MUSTER_AT_LOCATION = 0;
+
+
 
     protected static final int TRANSMISSION_RANGE = 1000;
 
@@ -54,6 +67,8 @@ public class RobotPlayer {
     protected static RobotType myType = null;
     protected static int attackRadius = 0;
     protected static int mySensorRadius = 0;
+
+    protected static int roundNumber;
 
     protected static ArrayList<MapLocation> pastLocations = new ArrayList<MapLocation>();
 
@@ -157,6 +172,7 @@ public class RobotPlayer {
 
     protected static void setCommonInfoForCurrentRound() {
         myLocation = rc.getLocation();
+        roundNumber = rc.getRoundNum();
     }
 
     protected static MapLocation findLocationWithMostParts(int radiusToSearchForParts) {
