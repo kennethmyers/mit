@@ -4,7 +4,6 @@ package team168;
 import battlecode.common.*;
 
 import java.util.ArrayList;
-import java.util.Stack;
 
 public class Archon extends RobotPlayer {
 
@@ -25,25 +24,46 @@ public class Archon extends RobotPlayer {
             // Hold election for lead Archon on first round
             holdElectionForArchonLeader();
             tryToCreateRobot(SCOUT);
+            Clock.yield();
         }
 
         if (role == LEADER) {
             Signal[] signals = getAlliedComplexSignalsOnly();
             for (int i = 0; i < signals.length; i++) {
                 int[] message = signals[i].getMessage();
-                if (message[0] == 0 && message[0] == 0) {
-                    int parts = message[1];
-                    rc.setIndicatorString(1, "Incoming transmission from:" + signals[i].getRobotID());
+                if (message[0] == PARTS_SIGNAL) {
+                    int amountOfParts = message[PARTS_AMOUNT];
+
+                    //rc.setIndicatorString(1, "Incoming transmission from:" + signals[i].getRobotID());
+
                     i++;
-                    message = signals[i].getMessage();
-                    rc.setIndicatorString(2, String.format("Parts %d found at: %d %d", parts, message[0], message[1]));
-                    locationsOfInterest.add(new MapLocation(message[0], message[1]));
+                    int[] locationMessage = signals[i].getMessage();
+                    //rc.setIndicatorString(2, String.format("Parts %d found at: %d %d", amountOfParts, locationMessage[0], locationMessage[1]));
+
+                    MapLocation locationToAdd = new MapLocation(locationMessage[0], locationMessage[1]);
+                    if (! locationsOfInterest.contains(locationToAdd)) {
+                        locationsOfInterest.add(locationToAdd);
+                    }
+                }
+                else if (message[0] == ZOMBIE_DEN_SIGNAL) {
+                    int amountOfParts = message[PARTS_AMOUNT];
+
+                    //rc.setIndicatorString(1, "Incoming transmission from:" + signals[i].getRobotID());
+
+                    i++;
+                    int[] locationMessage = signals[i].getMessage();
+                    rc.setIndicatorString(2, String.format("Zombie Den found at: %d %d",  locationMessage[0], locationMessage[1]));
+
+                    MapLocation locationToAdd = new MapLocation(locationMessage[0], locationMessage[1]);
+                    if (! locationsOfInterest.contains(locationToAdd)) {
+                        locationsOfInterest.add(locationToAdd);
+                    }
                 }
             }
 
             try {
                 rc.broadcastMessageSignal(LEADER_COMMAND, MUSTER_AT_LOCATION, TRANSMISSION_RANGE);
-                rc.broadcastMessageSignal(myLocation.x + 5, myLocation.y + 5, TRANSMISSION_RANGE);
+                rc.broadcastMessageSignal(myLocation.x + 5, myLocation.y + 13, TRANSMISSION_RANGE);
             } catch (GameActionException e) {
                 e.printStackTrace();
             }
@@ -60,23 +80,16 @@ public class Archon extends RobotPlayer {
                 int[] message = signals[i].getMessage();
                 if (message[0] == LEADER_COMMAND) {
                     if (message[1] == MUSTER_AT_LOCATION) {
+                        rc.setIndicatorString(2, "Muster command received");
                         i++;
                         message = signals[i].getMessage();
 
                         MapLocation newLocation = new MapLocation(message[0], message[1]);
 
-                        try {
-                            // Rebroadcast
-                            rc.broadcastMessageSignal(LEADER_COMMAND, MUSTER_AT_LOCATION, TRANSMISSION_RANGE);
-                            rc.broadcastMessageSignal(message[0], message[1], TRANSMISSION_RANGE);
-                        } catch (GameActionException e) {
-                            e.printStackTrace();
-                        }
                         makeBestFirstMoveAndClearRubble(myLocation.directionTo(newLocation));
                     }
                 }
             }
-
         }
     }
 
@@ -91,7 +104,7 @@ public class Archon extends RobotPlayer {
 
     private static void holdElectionForArchonLeader() {
         try {
-            rc.broadcastMessageSignal(0, 0, TRANSMISSION_RANGE);
+            rc.broadcastMessageSignal(ELECTION_SIGNAL_1, ELECTION_SIGNAL_2, TRANSMISSION_RANGE);
         } catch (GameActionException e) {
             e.printStackTrace();
         }

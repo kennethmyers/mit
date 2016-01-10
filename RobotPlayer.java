@@ -13,16 +13,22 @@ public class RobotPlayer {
 
     protected static final int[] possibleDirections = new int[]{0, 1, -1, 2, -2, 3, -3, 4};
 
+    protected static final int ELECTION_SIGNAL_1 = 100;
+    protected static final int ELECTION_SIGNAL_2 = 100;
+
+
     protected static final int PARTS_SIGNAL = 0;
+    protected static final int PARTS_AMOUNT = 1;
+
     protected static final int NUETRAL_BOT_SIGNAL = 1;
     protected static final int ENEMY_ARCHON_SIGNAL = 2;
-    protected static final int ZOMBIE_DEN_SIGNAL = 2;
+    protected static final int ZOMBIE_DEN_SIGNAL = 3;
 
     // Lead archon command signals
     protected static final int LEADER_COMMAND = 10;
     protected static final int MUSTER_AT_LOCATION = 0;
 
-    protected static final int TRANSMISSION_RANGE = 200;
+    protected static final int TRANSMISSION_RANGE = 1000;
 
     // Pre-define these for better readability
     protected static final Direction EAST = Direction.EAST;
