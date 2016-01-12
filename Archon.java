@@ -8,18 +8,23 @@ import java.util.ArrayList;
 public class Archon extends RobotPlayer {
 
     // Roles
-    protected static final int NO_ROLE = 0;
-    protected static final int LEADER = 1;
-    protected static final int FOLLOWER = 2;
+    static final int NO_ROLE = 0;
+    static final int LEADER = 1;
+    static final int FOLLOWER = 2;
 
-    protected static ArrayList<LocationReport> reports = new ArrayList<>();
+    static ArrayList<LocationReport> reports = new ArrayList<>();
 
     //protected static Stack<MapLocation> orders = new Stack<>();
     static MapLocation orderLocation = null;
     static LocationReport orderReport = null;
-    protected static int role = NO_ROLE;
+    static int role = NO_ROLE;
 
-    protected static void playTurn() {
+    static int leaderID = 0;
+    static int turnsSinceLastLeaderHeartbeat = 0;
+    static final int lastHeartBeatThreshold = 25;
+    static final int NEW_LEADER_SIGNAL = 11;
+
+    static void playTurn() {
 
         if (rc.getRoundNum() == 0) {
             // Hold election for lead Archon on first round
@@ -54,7 +59,7 @@ public class Archon extends RobotPlayer {
             }
 
             // If there are no outstanding orders, issue a new one
-            if (orderLocation == null && (reports.size() > 10 || roundNumber > 40)) {
+            if (orderLocation == null && (reports.size() > 10 || roundNumber > 50)) {
                 rc.setIndicatorString(2, "Setting new orders....");
                 orderReport = getBestOrder();
                 if (orderReport != null) {
@@ -132,6 +137,25 @@ public class Archon extends RobotPlayer {
         }
 
         if (role == FOLLOWER) {
+
+            if (roundNumber > 100) {
+                Signal[] leaderSignals = getAlliedComplexSignalsOnlyFromRobotWithId(leaderID);
+                if (leaderSignals.length == 0) {
+                    turnsSinceLastLeaderHeartbeat++;
+                    if (turnsSinceLastLeaderHeartbeat > lastHeartBeatThreshold) {
+                        // The King is dead!
+                        role = LEADER;
+                        try {
+                            // Long live the King!
+                            rc.broadcastMessageSignal(LEADER_COMMAND, NEW_LEADER_SIGNAL, 300);
+                        } catch (GameActionException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                } else {
+                    turnsSinceLastLeaderHeartbeat = 0;
+                }
+            }
             activateAdjacentNuetralBots();
 
 
@@ -148,10 +172,13 @@ public class Archon extends RobotPlayer {
                         MapLocation newLocation = new MapLocation(message[0], message[1]);
 
                         makeBestFirstMoveAndClearRubble(myLocation.directionTo(newLocation));
+                    } else if(message[1] == NEW_LEADER_SIGNAL){
+                        leaderID = signals[i].getID();
                     }
                 }
             }
-            //collectParts();
+            healNearbyAllies();
+            collectParts();
         }
     }
 
@@ -217,7 +244,9 @@ public class Archon extends RobotPlayer {
             role = LEADER;
         } else {
             role = FOLLOWER;
+
             rc.setIndicatorString(0, "At your service m'lord!");
+            leaderID = electionSignals[0].getID();
         }
     }
 
@@ -235,6 +264,17 @@ public class Archon extends RobotPlayer {
                 }
             }
         }
+    }
+
+    protected static Signal[] getAlliedComplexSignalsOnlyFromRobotWithId(int id) {
+        Signal[] signals = rc.emptySignalQueue();
+        ArrayList<Signal> leaderSignals = new ArrayList<Signal>();
+        for (Signal signal : signals) {
+            if (signal.getTeam() == myTeam && signal.getMessage() != null && signal.getID() == leaderID) {
+                leaderSignals.add(signal);
+            }
+        }
+        return leaderSignals.toArray(new Signal[leaderSignals.size()]);
     }
 
     protected static void healNearbyAllies() {

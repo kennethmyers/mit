@@ -39,6 +39,8 @@ public class Soldier extends RobotPlayer {
             }
         }
 
+
+
        /* RobotInfo[] enemiesInSensorRange = getAllHostilesWithinRange(mySensorRadius);
         if (enemiesInSensorRange.length > 0) {
             rc.setIndicatorString(0, "Enemies detected " +enemiesInSensorRange.length );
