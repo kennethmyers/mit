@@ -21,7 +21,11 @@ public class Scout extends RobotPlayer {
             for (int i = 0; i < mySensorRadius - 1; i++) {
                 try {
                     if (! rc.onTheMap(locationToCheck)) {
-                        currentDirection = currentDirection.rotateLeft().rotateLeft();
+                        if (roundNumber % 2 == 0) {
+                            currentDirection = currentDirection.rotateLeft().rotateLeft();
+                        } else {
+                            currentDirection = currentDirection.rotateRight().rotateRight();
+                        }
                     } else {
                         locationToCheck = locationToCheck.add(currentDirection);
                     }
@@ -31,7 +35,6 @@ public class Scout extends RobotPlayer {
             }
             makeBestFirstMove(currentDirection);
         }
-
 
         MapLocation[] locationsToScan = myLocation.getAllMapLocationsWithinRadiusSq(myLocation, mySensorRadius);
         for (MapLocation location : locationsToScan) {
@@ -46,8 +49,8 @@ public class Scout extends RobotPlayer {
             }
         }
 
-        RobotInfo[] nuetralRobots = rc.senseNearbyRobots(mySensorRadius, Team.NEUTRAL);
-        for (RobotInfo robotInfo : nuetralRobots) {
+        RobotInfo[] neutralRobots = rc.senseNearbyRobots(mySensorRadius, Team.NEUTRAL);
+        for (RobotInfo robotInfo : neutralRobots) {
             MapLocation location = robotInfo.location;
             if (! reportedLocations.contains(location)) {
                 try{
@@ -65,7 +68,7 @@ public class Scout extends RobotPlayer {
             MapLocation location = robotInfo.location;
             if (! reportedLocations.contains(location) && robotInfo.type == RobotType.ZOMBIEDEN) {
                 try{
-                    rc.setIndicatorString(0, "ZOMBIE DEN FOUND");
+                    rc.setIndicatorString(0, String.format("ZOMBIE DEN FOUND at %d,%d", location.x, location.y));
                     rc.broadcastMessageSignal(ZOMBIE_DEN_SIGNAL, robotInfo.ID, TRANSMISSION_RANGE);
                     rc.broadcastMessageSignal(location.x, location.y, TRANSMISSION_RANGE);
                 } catch (GameActionException e) {

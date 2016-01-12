@@ -20,13 +20,12 @@ public class RobotPlayer {
 
     protected static final int PARTS_SIGNAL = 0;
     protected static final int PARTS_AMOUNT = 1;
-
     protected static final int NUETRAL_BOT_SIGNAL = 1;
     protected static final int ENEMY_ARCHON_SIGNAL = 2;
     protected static final int ZOMBIE_DEN_SIGNAL = 3;
 
 
-    protected static HashSet<Integer> VALID_SIGNAL_TYPES =
+    static HashSet<Integer> VALID_SIGNAL_TYPES =
             new HashSet<Integer>(Arrays.asList(new Integer[]{PARTS_SIGNAL, NUETRAL_BOT_SIGNAL, ZOMBIE_DEN_SIGNAL}));
 
     protected static int REPORT_TYPE_INDEX = 0;
@@ -95,17 +94,15 @@ public class RobotPlayer {
                     Archon.playTurn();
                 } else if (myType == SCOUT) {
                     Scout.playTurn();
-              } else if (myType == RobotType.SOLDIER) {
-                    Soldier.playTurn();}/*
-                } else if (myType == RobotType.SCOUT) {
-                    Scout.playTurn();
-                } else if (myType == RobotType.TURRET) {
+                } else if (myType == RobotType.SOLDIER) {
                     Soldier.playTurn();
+                } else if (myType == RobotType.TURRET) {
+                    Turret.playTurn();
                 } else if (myType == RobotType.TTM) {
                     Soldier.playTurn();
                 } else if (myType == RobotType.VIPER) {
                     Soldier.playTurn();
-                }*/
+                }
                 Clock.yield();
             }
         } catch (Exception e) {
@@ -130,15 +127,20 @@ public class RobotPlayer {
     protected static void makeBestFirstMoveAndClearRubble(Direction desiredDirection){
         for (int i : possibleDirections) {
             Direction candidateDirection = directions[(desiredDirection.ordinal() + i + 8) % 8];
-            if (rc.canMove(candidateDirection)){
+            if (rc.canMove(candidateDirection) && ! pastLocations.contains(myLocation.add(candidateDirection))){
                 try {
                     rc.move(candidateDirection);
+                    pastLocations.add(myLocation);
+                    if (pastLocations.size() > 10) {
+                        pastLocations.remove(0);
+                    }
+
                 } catch (GameActionException e) {
                     e.printStackTrace();
                 }
                 break;
             }
-            else if (rc.senseRubble(myLocation.add(candidateDirection)) > 0){
+           else if (rc.senseRubble(myLocation.add(candidateDirection)) > 0){
                 try {
                     rc.clearRubble(candidateDirection);
                 } catch (GameActionException e) {
@@ -149,7 +151,7 @@ public class RobotPlayer {
         }
     }
 
-    protected static MapLocation getLocationOfRobotWithLowestHP(RobotInfo[] robotInfos) {
+    protected static MapLocation getLocationPercentageOfRobotWithLowestHP(RobotInfo[] robotInfos) {
         MapLocation locationWithLowestHealthRobot = null;
         double lowestHP = 999999.0;
         for (RobotInfo robotInfo : robotInfos) {

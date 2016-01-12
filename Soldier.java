@@ -32,18 +32,17 @@ public class Soldier extends RobotPlayer {
         if (enemiesInRange.length > 0) {
             if (rc.isWeaponReady()) {
                 try {
-                    rc.attackLocation(getLocationOfRobotWithLowestHP(enemiesInRange));
-                    Clock.yield();
+                    rc.attackLocation(getLocationPercentageOfRobotWithLowestHP(enemiesInRange));
                 } catch (GameActionException e) {
                     e.printStackTrace();
                 }
             }
         }
 
-        RobotInfo[] enemiesInSensorRange = getAllHostilesWithinRange(mySensorRadius);
+       /* RobotInfo[] enemiesInSensorRange = getAllHostilesWithinRange(mySensorRadius);
         if (enemiesInSensorRange.length > 0) {
             rc.setIndicatorString(0, "Enemies detected " +enemiesInSensorRange.length );
             makeBestFirstMoveAndClearRubble(myLocation.directionTo(enemiesInSensorRange[0].location));
-        }
+        }*/
     }
 }

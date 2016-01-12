@@ -12,12 +12,11 @@ public class Archon extends RobotPlayer {
     protected static final int LEADER = 1;
     protected static final int FOLLOWER = 2;
 
-
-
-
     protected static ArrayList<LocationReport> reports = new ArrayList<>();
+
     //protected static Stack<MapLocation> orders = new Stack<>();
-    static MapLocation order = null;
+    static MapLocation orderLocation = null;
+    static LocationReport orderReport = null;
     protected static int role = NO_ROLE;
 
     protected static void playTurn() {
@@ -29,7 +28,11 @@ public class Archon extends RobotPlayer {
             Clock.yield();
         }
 
+        activateAdjacentNuetralBots();
+
         if (role == LEADER) {
+
+            // Get any reports from scouts and save them
             Signal[] signals = getAlliedComplexSignalsOnly();
             for (int i = 0; i < signals.length; i++) {
                 int[] message = signals[i].getMessage();
@@ -44,40 +47,94 @@ public class Archon extends RobotPlayer {
 
                     LocationReport report = new LocationReport(reportLocation, reportType, reportData, roundNumber);
                     if (! reports.contains(report)) {
+                        //rc.setIndicatorString(1, "New report filed " + report);
                         reports.add(report);
                     }
                 }
             }
 
-            if (order == null) {
-                for (LocationReport report : reports) {
-                    if (report.getReportType() == ZOMBIE_DEN_SIGNAL) {
-                        rc.setIndicatorString(1, "ZOMBIE DEN");
-                        MapLocation location = report.getReportLocation();
-                        order = location;
-                    }
-                }
-            }
-
-            if (order != null) {
-                if (rc.getRoundNum() % 5 == 0) {
+            // If there are no outstanding orders, issue a new one
+            if (orderLocation == null && (reports.size() > 10 || roundNumber > 40)) {
+                rc.setIndicatorString(2, "Setting new orders....");
+                orderReport = getBestOrder();
+                if (orderReport != null) {
+                    orderLocation = orderReport.getReportLocation();
                     try {
+                        //rc.setIndicatorString(1,  String.format("ZOMBIE DEN at %d %d ", orderLocation.x, orderLocation.y));
                         rc.broadcastMessageSignal(LEADER_COMMAND, MUSTER_AT_LOCATION, TRANSMISSION_RANGE);
-                        rc.broadcastMessageSignal(order.x, order.y, TRANSMISSION_RANGE);
+                        rc.broadcastMessageSignal(orderLocation.x, orderLocation.y, TRANSMISSION_RANGE);
                     } catch (GameActionException e) {
                         e.printStackTrace();
                     }
                 }
+
             }
 
-            if (order != null) {
-                makeBestFirstMoveAndClearRubble(myLocation.directionTo(order));
+            // There is an active order issued
+            if (orderLocation != null) {
+                rc.setIndicatorString(0, "Current orders: " + orderReport);
+                // Rebroadcast orders every 5 rounds for new bots.
+                if (rc.getRoundNum() % 5 == 0) {
+                    try {
+                        rc.broadcastMessageSignal(LEADER_COMMAND, MUSTER_AT_LOCATION, TRANSMISSION_RANGE);
+                        rc.broadcastMessageSignal(orderLocation.x, orderLocation.y, TRANSMISSION_RANGE);
+                    } catch (GameActionException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+
+                if (rc.canSenseLocation(orderLocation)) {
+                    boolean isOrderComplete = false;
+                    if (orderReport.getReportType() == PARTS_SIGNAL) {
+                        if (rc.senseParts(orderReport.getReportLocation()) == 0) {
+                            isOrderComplete = true;
+                        }
+                    } else if (orderReport.getReportType() == NUETRAL_BOT_SIGNAL) {
+                        try {
+                            if (rc.senseRobotAtLocation(orderLocation).team == myTeam) {
+                                isOrderComplete = true;
+                            }
+                        } catch (GameActionException e) {
+                            e.printStackTrace();
+                        }
+                    } else if (orderReport.getReportType() == ZOMBIE_DEN_SIGNAL) {
+                        try {
+                            if (rc.senseRobotAtLocation(orderLocation).type != RobotType.ZOMBIEDEN) {
+                                isOrderComplete = true;
+                            }
+                        } catch (GameActionException e) {
+                            e.printStackTrace();
+                        }
+                    }
+
+                    if (isOrderComplete) {
+                        orderReport.setValid(false);
+                        reports.remove(orderReport);
+                        reports.add(orderReport);
+                        orderReport = null;
+                        orderLocation = null;
+                        rc.setIndicatorString(1, "Orders complete.");
+                    }
+                }
+            } else {
+                rc.setIndicatorString(0, "No orders...");
             }
 
-            rc.setIndicatorString(2, String.format("%d reports recieved form scouts: ", reports.size()));
+
+            if (orderLocation != null) {
+                makeBestFirstMoveAndClearRubble(myLocation.directionTo(orderLocation));
+            }
+
+            //collectParts();
+
+            rc.setIndicatorString(0, String.format("%d reports received from scouts: ", reports.size()));
         }
 
         if (role == FOLLOWER) {
+            activateAdjacentNuetralBots();
+
+
             tryToCreateRobot(SOLDIER);
             Signal[] signals = getAlliedComplexSignalsOnly();
             for (int i = 0; i < signals.length; i++) {
@@ -94,7 +151,47 @@ public class Archon extends RobotPlayer {
                     }
                 }
             }
+            //collectParts();
         }
+    }
+
+    private static void activateAdjacentNuetralBots() {
+        // Activate any adjacent neutral robots
+        RobotInfo[] adjacentNeutralRobots = rc.senseNearbyRobots(1, Team.NEUTRAL);
+        if (adjacentNeutralRobots.length > 0) {
+            for (RobotInfo robot : adjacentNeutralRobots) {
+                try {
+                    rc.activate(robot.location);
+                } catch (GameActionException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    private static LocationReport getBestOrder() {
+        int highestScoreFound = -99999;
+        LocationReport mostPromisingReport = null;
+        for (LocationReport report : reports) {
+            if (report.isValid()) {
+                int score = 0;
+                int distance = myLocation.distanceSquaredTo(report.getReportLocation());
+                if (report.getReportType() == ZOMBIE_DEN_SIGNAL) {
+                    score = 100 - distance;
+                } else if (report.getReportType() == PARTS_SIGNAL) {
+                    score = report.getReportData() - distance;
+                } else if (report.getReportType() == NUETRAL_BOT_SIGNAL) {
+                    score = +RobotType.values()[report.getReportData()].partCost - distance;
+                }
+
+                if (score > highestScoreFound) {
+                    highestScoreFound = score;
+                    mostPromisingReport = report;
+                }
+            }
+        }
+        rc.setIndicatorString(2, "Most promising report is.... " + mostPromisingReport);
+        return mostPromisingReport;
     }
 
     private static void collectParts() {
@@ -133,6 +230,20 @@ public class Archon extends RobotPlayer {
                             rc.build(direction, robotType);
                         }
                     }
+                } catch (GameActionException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    protected static void healNearbyAllies() {
+        // Repair any wounded ally robots
+        if (rc.isCoreReady()) {
+            RobotInfo[] nearbyAlliedRobots = rc.senseNearbyRobots(attackRadius, myTeam);
+            if (nearbyAlliedRobots.length > 0) {
+                try {
+                    rc.repair(getLocationPercentageOfRobotWithLowestHP(nearbyAlliedRobots));
                 } catch (GameActionException e) {
                     e.printStackTrace();
                 }
