@@ -1,7 +1,6 @@
 package team168;
 
 import battlecode.common.*;
-import scala.Array;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -214,8 +213,7 @@ public class RobotPlayer {
         return alliedSignals.toArray(new Signal[alliedSignals.size()]);
     }
 
-    protected static Signal[] getAlliedComplexSignalsOnly() {
-        Signal[] signals = rc.emptySignalQueue();
+    protected static Signal[] getAlliedComplexSignalsOnly(Signal[] signals) {
         ArrayList<Signal> alliedSignals = new ArrayList<Signal>();
         for (Signal signal : signals) {
             if (signal.getTeam() == myTeam && signal.getMessage() != null) {
