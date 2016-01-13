@@ -8,23 +8,18 @@ import java.util.ArrayList;
 public class Archon extends RobotPlayer {
 
     // Roles
-    static final int NO_ROLE = 0;
-    static final int LEADER = 1;
-    static final int FOLLOWER = 2;
+    protected static final int NO_ROLE = 0;
+    protected static final int LEADER = 1;
+    protected static final int FOLLOWER = 2;
 
-    static ArrayList<LocationReport> reports = new ArrayList<>();
+    protected static ArrayList<LocationReport> reports = new ArrayList<>();
 
     //protected static Stack<MapLocation> orders = new Stack<>();
     static MapLocation orderLocation = null;
     static LocationReport orderReport = null;
-    static int role = NO_ROLE;
+    protected static int role = NO_ROLE;
 
-    static int leaderID = 0;
-    static int turnsSinceLastLeaderHeartbeat = 0;
-    static final int lastHeartBeatThreshold = 25;
-    static final int NEW_LEADER_SIGNAL = 11;
-
-    static void playTurn() {
+    protected static void playTurn() {
 
         if (rc.getRoundNum() == 0) {
             // Hold election for lead Archon on first round
@@ -36,30 +31,10 @@ public class Archon extends RobotPlayer {
         activateAdjacentNuetralBots();
 
         if (role == LEADER) {
-
-            // Get any reports from scouts and save them
-            Signal[] signals = getAlliedComplexSignalsOnly();
-            for (int i = 0; i < signals.length; i++) {
-                int[] message = signals[i].getMessage();
-                int reportType = message[REPORT_TYPE_INDEX];
-                if (VALID_SIGNAL_TYPES.contains(reportType)) {
-                    int reportData = message[REPORT_DATA_INDEX];
-
-                    i++;
-                    int[] locationMessage = signals[i].getMessage();
-                    MapLocation reportLocation = new MapLocation(locationMessage[X_COORDINATE],
-                            locationMessage[Y_COORDINATE]);
-
-                    LocationReport report = new LocationReport(reportLocation, reportType, reportData, roundNumber);
-                    if (! reports.contains(report)) {
-                        //rc.setIndicatorString(1, "New report filed " + report);
-                        reports.add(report);
-                    }
-                }
-            }
+            fileReceivedReports();
 
             // If there are no outstanding orders, issue a new one
-            if (orderLocation == null && (reports.size() > 10 || roundNumber > 50)) {
+            if (orderLocation == null && (reports.size() > 10 || roundNumber > 40)) {
                 rc.setIndicatorString(2, "Setting new orders....");
                 orderReport = getBestOrder();
                 if (orderReport != null) {
@@ -137,27 +112,9 @@ public class Archon extends RobotPlayer {
         }
 
         if (role == FOLLOWER) {
-
-            if (roundNumber > 100) {
-                Signal[] leaderSignals = getAlliedComplexSignalsOnlyFromRobotWithId(leaderID);
-                if (leaderSignals.length == 0) {
-                    turnsSinceLastLeaderHeartbeat++;
-                    if (turnsSinceLastLeaderHeartbeat > lastHeartBeatThreshold) {
-                        // The King is dead!
-                        role = LEADER;
-                        try {
-                            // Long live the King!
-                            rc.broadcastMessageSignal(LEADER_COMMAND, NEW_LEADER_SIGNAL, 300);
-                        } catch (GameActionException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                } else {
-                    turnsSinceLastLeaderHeartbeat = 0;
-                }
-            }
             activateAdjacentNuetralBots();
 
+            fileReceivedReports();
 
             tryToCreateRobot(SOLDIER);
             Signal[] signals = getAlliedComplexSignalsOnly();
@@ -172,13 +129,34 @@ public class Archon extends RobotPlayer {
                         MapLocation newLocation = new MapLocation(message[0], message[1]);
 
                         makeBestFirstMoveAndClearRubble(myLocation.directionTo(newLocation));
-                    } else if(message[1] == NEW_LEADER_SIGNAL){
-                        leaderID = signals[i].getID();
                     }
                 }
             }
-            healNearbyAllies();
-            collectParts();
+            fileReceivedReports();
+            //collectParts();
+        }
+    }
+
+    private static void fileReceivedReports() {
+        // Get any reports from scouts and save them
+        Signal[] signals = getAlliedComplexSignalsOnly();
+        for (int i = 0; i < signals.length; i++) {
+            int[] message = signals[i].getMessage();
+            int reportType = message[REPORT_TYPE_INDEX];
+            if (VALID_SIGNAL_TYPES.contains(reportType)) {
+                int reportData = message[REPORT_DATA_INDEX];
+
+                i++;
+                int[] locationMessage = signals[i].getMessage();
+                MapLocation reportLocation = new MapLocation(locationMessage[X_COORDINATE],
+                        locationMessage[Y_COORDINATE]);
+
+                LocationReport report = new LocationReport(reportLocation, reportType, reportData, roundNumber);
+                if (! reports.contains(report)) {
+                    //rc.setIndicatorString(1, "New report filed " + report);
+                    reports.add(report);
+                }
+            }
         }
     }
 
@@ -244,9 +222,7 @@ public class Archon extends RobotPlayer {
             role = LEADER;
         } else {
             role = FOLLOWER;
-
             rc.setIndicatorString(0, "At your service m'lord!");
-            leaderID = electionSignals[0].getID();
         }
     }
 
@@ -264,17 +240,6 @@ public class Archon extends RobotPlayer {
                 }
             }
         }
-    }
-
-    protected static Signal[] getAlliedComplexSignalsOnlyFromRobotWithId(int id) {
-        Signal[] signals = rc.emptySignalQueue();
-        ArrayList<Signal> leaderSignals = new ArrayList<Signal>();
-        for (Signal signal : signals) {
-            if (signal.getTeam() == myTeam && signal.getMessage() != null && signal.getID() == leaderID) {
-                leaderSignals.add(signal);
-            }
-        }
-        return leaderSignals.toArray(new Signal[leaderSignals.size()]);
     }
 
     protected static void healNearbyAllies() {
