@@ -2,12 +2,13 @@ package team168;
 
 
 import battlecode.common.*;
+import scala.Int;
 
 public class Soldier extends RobotPlayer {
 
-    protected static MapLocation order = null;
+    static MapLocation order = null;
 
-    protected static void playTurn() {
+    static void playTurn() {
         Signal[] signals = rc.emptySignalQueue();
 
         Signal[] alliedComplexSignalsOnly = getAlliedComplexSignalsOnly(signals);
@@ -42,6 +43,9 @@ public class Soldier extends RobotPlayer {
                 }
             }
         }
+
+        rc.setIndicatorString(0, String.format(" %d", GameConstants.BASIC_SIGNALS_PER_TURN));
+        rc.setIndicatorString(1, String.format(" %d", GameConstants.MESSAGE_SIGNALS_PER_TURN));
 
        /* RobotInfo[] enemiesInSensorRange = getAllHostilesWithinRange(mySensorRadius);
         if (enemiesInSensorRange.length > 0) {

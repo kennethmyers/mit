@@ -2,262 +2,135 @@ package team168;
 
 
 import battlecode.common.*;
+import scala.Array;
+import scala.Int;
 
-import java.util.ArrayList;
+import java.util.*;
 
 public class Archon extends RobotPlayer {
 
-    // Roles
-    static final int NO_ROLE = 0;
-    static final int LEADER = 1;
-    static final int FOLLOWER = 2;
+    static ArrayList<MapLocation> maps = new ArrayList<>();
 
-    static ArrayList<LocationReport> reports = new ArrayList<>();
+    static final MapLocation testTargetLocation = new MapLocation(435, 154);
+    static Stack<MapLocation> path = new Stack<>();
 
-    //protected static Stack<MapLocation> orders = new Stack<>();
-    static MapLocation orderLocation = null;
-    static LocationReport orderReport = null;
-    static int role = NO_ROLE;
 
-    static int leaderID = 0;
-    static int turnsSinceLastLeaderHeartbeat = 0;
-    static final int lastHeartBeatThreshold = 25;
-    static final int NEW_LEADER_SIGNAL = 11;
+    private static int numberOfAlliedArchons;
 
     static void playTurn() {
+        if (roundNumber == 0) {
+            tryToCreateRobot(SCOUT);
+            MapLocation[] alliedArchonLocations = rc.getInitialArchonLocations(myTeam);
+            numberOfAlliedArchons = alliedArchonLocations.length;
+
+            MapLocation[] enemyArchonLocations = rc.getInitialArchonLocations(enemyTeam);
+
+            ZombieSpawnSchedule zombieSpawnSchedule = rc.getZombieSpawnSchedule();
+        }
 
         Signal[] signals = rc.emptySignalQueue();
-        if (rc.getRoundNum() == 0) {
-            // Hold election for lead Archon on first round
-            holdElectionForArchonLeader(signals);
-            tryToCreateRobot(SCOUT);
-            Clock.yield();
-        }
-
-        activateAdjacentNuetralBots();
-
-        if (role == LEADER) {
-
-            fileReceivedReports(signals);
-
-            // If there are no outstanding orders, issue a new one
-            if (orderLocation == null && (reports.size() > 10 || roundNumber > 50)) {
-                rc.setIndicatorString(2, "Setting new orders....");
-                orderReport = getBestOrder();
-                if (orderReport != null) {
-                    orderLocation = orderReport.getReportLocation();
-                    try {
-                        //rc.setIndicatorString(1,  String.format("ZOMBIE DEN at %d %d ", orderLocation.x, orderLocation.y));
-                        rc.broadcastMessageSignal(LEADER_COMMAND, MUSTER_AT_LOCATION, TRANSMISSION_RANGE);
-                        rc.broadcastMessageSignal(orderLocation.x, orderLocation.y, TRANSMISSION_RANGE);
-                    } catch (GameActionException e) {
-                        e.printStackTrace();
-                    }
-                }
+        Signal[] stuff = getAlliedComplexSignalsOnly(signals);
+        for (Signal signal : stuff) {
+            Message message = new Message(signal.getMessage());
+            if (!maps.contains(message.target)) {
+                maps.add(message.target);
             }
 
-            // There is an active order issued
-            if (orderLocation != null) {
-                rc.setIndicatorString(1, "Current orders: " + orderReport);
-                // Rebroadcast orders every 5 rounds for new bots.
-                if (rc.getRoundNum() % 5 == 0) {
-                    try {
-                        rc.broadcastMessageSignal(LEADER_COMMAND, MUSTER_AT_LOCATION, TRANSMISSION_RANGE);
-                        rc.broadcastMessageSignal(orderLocation.x, orderLocation.y, TRANSMISSION_RANGE);
-                    } catch (GameActionException e) {
-                        e.printStackTrace();
-                    }
-                }
+        }
 
-                if (rc.canSenseLocation(orderLocation)) {
-                    boolean isOrderComplete = false;
-                    if (orderReport.getReportType() == PARTS_SIGNAL) {
-                        if (rc.senseParts(orderReport.getReportLocation()) == 0) {
-                            isOrderComplete = true;
+
+        /*for next in graph.neighbors(current):
+        new_cost = cost_so_far[current] + graph.cost(current, next)
+        if next not in cost_so_far or new_cost < cost_so_far[next]:
+        cost_so_far[next] = new_cost
+        priority = new_cost + heuristic(goal, next)
+        frontier.put(next, priority)
+        came_from[next] = current
+        */
+
+        // A*
+        if (roundNumber > 35 && path.size() == 0) {
+            HashMap<MapLocation, Integer> frontier = new HashMap<MapLocation, Integer>();
+            frontier.put(myLocation, 0);
+            HashMap<MapLocation, MapLocation> cameFrom = new HashMap<MapLocation, MapLocation>();
+            HashMap<MapLocation, Integer> costSoFar = new HashMap<MapLocation, Integer>();
+            cameFrom.put(myLocation, null);
+            costSoFar.put(myLocation, new Integer(0));
+            while (! frontier.isEmpty()) {
+                rc.setIndicatorString(0, String.format("%d", cameFrom.size()));
+
+                MapLocation current = getMaxValue(frontier);
+                frontier.remove(current);
+                System.out.println(current);
+                if (current.equals(testTargetLocation)) {
+                    System.out.println("Found target!");
+                    System.out.println("Bytecode used: " + Clock.getBytecodeNum());
+                    System.out.println("Came from " + cameFrom);
+                    MapLocation test = cameFrom.get(testTargetLocation);
+
+                    while (test != null) {
+                        System.out.println("Backtracking: " + test);
+                        if (cameFrom.get(test).equals(myLocation)) {
+                            break;
                         }
-                    } else if (orderReport.getReportType() == NUETRAL_BOT_SIGNAL) {
-                        try {
-                            if (rc.senseRobotAtLocation(orderLocation) != null) {
-                                if (rc.senseRobotAtLocation(orderLocation).team == myTeam) {
-                                    isOrderComplete = true;
-                                }
-                            }
-                        } catch (GameActionException e) {
-                            e.printStackTrace();
-                        }
-                    } else if (orderReport.getReportType() == ZOMBIE_DEN_SIGNAL) {
-
-                        try {
-                            if (rc.senseRobotAtLocation(orderLocation) != null) {
-                                if (rc.senseRobotAtLocation(orderLocation).type != RobotType.ZOMBIEDEN) {
-                                    isOrderComplete = true;
-                                }
-                            }
-                        } catch (GameActionException e) {
-                            e.printStackTrace();
-                        }
+                        path.push(test);
+                        test = cameFrom.get(test);
                     }
 
-                    if (isOrderComplete) {
-                        orderReport.setValid(false);
-                        reports.remove(orderReport);
-                        reports.add(orderReport);
-                        orderReport = null;
-                        orderLocation = null;
-                        rc.setIndicatorString(1, "Orders complete.");
+                    break;
+                }
+
+                ArrayList<MapLocation> adjacent = new ArrayList<MapLocation>(Arrays.asList(MapLocation.getAllMapLocationsWithinRadiusSq(current, 1)));
+                adjacent.removeAll(maps);
+                adjacent.remove(current);
+                rc.setIndicatorString(1, String.format("%d", adjacent.size()));
+
+                for (MapLocation next : adjacent) {
+                    //rc.setIndicatorString(2, "" + next);
+                    //if (!maps.contains(next)) {
+                    System.out.println("Checkout out this location " + next);
+                    Integer newCost = costSoFar.get(current) - 1; // Rubble clear penalty here
+                    System.out.println("new Cost " + newCost);
+                    rc.setIndicatorString(2, String.format("%d", newCost ));
+                    if (! costSoFar.containsKey(next) || newCost > costSoFar.get(next)) {
+                        costSoFar.put(next, newCost);
+                        Integer priority = newCost + getHeuristicScore(testTargetLocation, next);
+                        System.out.println("New Priority: " + priority);
+                        frontier.put(next, priority);
+                        cameFrom.put(next, current);
                     }
+                    //}
                 }
-            } else {
-                rc.setIndicatorString(0, "No orders...");
             }
 
-            if (orderLocation != null) {
-                makeBestFirstMoveAndClearRubble(myLocation.directionTo(orderLocation));
-            }
 
-            rc.setIndicatorString(0, String.format("%d reports received from scouts: ", reports.size()));
         }
 
-        if (role == FOLLOWER) {
-
-            activateAdjacentNuetralBots();
-
-            tryToCreateRobot(SOLDIER);
-            Signal[] alliedComplexSignalsOnly = getAlliedComplexSignalsOnly(signals);
-            for (int i = 0; i < alliedComplexSignalsOnly.length; i++) {
-                int[] message = alliedComplexSignalsOnly[i].getMessage();
-                if (message[0] == LEADER_COMMAND) {
-                    if (message[1] == MUSTER_AT_LOCATION) {
-                        rc.setIndicatorString(2, "Muster command received");
-                        i++;
-                        message = alliedComplexSignalsOnly[i].getMessage();
-
-                        MapLocation newLocation = new MapLocation(message[0], message[1]);
-
-                        makeBestFirstMoveAndClearRubble(myLocation.directionTo(newLocation));
-                    } else if(message[1] == NEW_LEADER_SIGNAL){
-                        leaderID = alliedComplexSignalsOnly[i].getID();
-                        turnsSinceLastLeaderHeartbeat = 0;
-                    }
-                }
+        if (rc.isCoreReady() && path.size() > 0) {
+            try {
+                rc.move(myLocation.directionTo(path.pop()));
+            } catch (GameActionException e) {
+                e.printStackTrace();
             }
 
-            if (roundNumber > 100) {
-                Signal[] leaderSignals = getAlliedComplexSignalsOnlyFromRobotWithId(signals, leaderID);
-                if (leaderSignals.length == 0) {
-                    turnsSinceLastLeaderHeartbeat++;
-                    rc.setIndicatorString(1, String.format("Having heard from leader in %d rounds ", turnsSinceLastLeaderHeartbeat));
-                    if (turnsSinceLastLeaderHeartbeat > lastHeartBeatThreshold) {
-                        // The King is dead!
-                        role = LEADER;
-                        try {
-                            // Long live the King!
-                            rc.broadcastMessageSignal(LEADER_COMMAND, NEW_LEADER_SIGNAL, 300);
-                        } catch (GameActionException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                } else {
-                    turnsSinceLastLeaderHeartbeat = 0;
-                }
-            }
-
-            fileReceivedReports(signals);
-
-            healNearbyAllies();
-            collectParts();
         }
+
+        rc.setIndicatorString(1, String.format("Dank locations %d", maps.size()));
     }
 
-    private static void fileReceivedReports(Signal[] signals) {
-        // Get any reports from scouts and save them
-        Signal[] alliedComplexSignalsOnly = getAlliedComplexSignalsOnly(signals);
-        for (int i = 0; i < alliedComplexSignalsOnly.length; i++) {
-            int[] message = alliedComplexSignalsOnly[i].getMessage();
-            int reportType = message[REPORT_TYPE_INDEX];
-            if (VALID_SIGNAL_TYPES.contains(reportType)) {
-                int reportData = message[REPORT_DATA_INDEX];
+    protected static MapLocation getMaxValue(HashMap<MapLocation, Integer> hashMap) {
+        HashMap.Entry<MapLocation, Integer> maxEntry = null;
 
-                i++;
-                int[] locationMessage = alliedComplexSignalsOnly[i].getMessage();
-                MapLocation reportLocation = new MapLocation(locationMessage[X_COORDINATE],
-                        locationMessage[Y_COORDINATE]);
-
-                LocationReport report = new LocationReport(reportLocation, reportType, reportData, roundNumber);
-                if (! reports.contains(report)) {
-                    //rc.setIndicatorString(1, "New report filed " + report);
-                    reports.add(report);
-                }
+        for (HashMap.Entry<MapLocation, Integer> entry : hashMap.entrySet())
+        {
+            if (maxEntry == null || entry.getValue().compareTo(maxEntry.getValue()) > 0)
+            {
+                maxEntry = entry;
             }
         }
+        return maxEntry.getKey();
     }
 
-    private static void activateAdjacentNuetralBots() {
-        // Activate any adjacent neutral robots
-        RobotInfo[] adjacentNeutralRobots = rc.senseNearbyRobots(1, Team.NEUTRAL);
-        if (adjacentNeutralRobots.length > 0) {
-            for (RobotInfo robot : adjacentNeutralRobots) {
-                try {
-                    rc.activate(robot.location);
-                } catch (GameActionException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
-
-    private static LocationReport getBestOrder() {
-        int highestScoreFound = -99999;
-        LocationReport mostPromisingReport = null;
-        for (LocationReport report : reports) {
-            if (report.isValid()) {
-                int score = 0;
-                int distance = myLocation.distanceSquaredTo(report.getReportLocation());
-                if (report.getReportType() == ZOMBIE_DEN_SIGNAL) {
-                    score = 100 - distance;
-                } else if (report.getReportType() == PARTS_SIGNAL) {
-                    score = report.getReportData() - distance;
-                } else if (report.getReportType() == NUETRAL_BOT_SIGNAL) {
-                    score = +RobotType.values()[report.getReportData()].partCost - distance;
-                }
-
-                if (score > highestScoreFound) {
-                    highestScoreFound = score;
-                    mostPromisingReport = report;
-                }
-            }
-        }
-        rc.setIndicatorString(2, "Most promising report is.... " + mostPromisingReport);
-        return mostPromisingReport;
-    }
-
-    private static void collectParts() {
-
-        MapLocation partsLocation = findLocationWithMostParts(mySensorRadius);
-        if (partsLocation != null){
-            makeBestFirstMoveAndClearRubble(myLocation.directionTo(partsLocation));
-        }
-    }
-
-    private static void holdElectionForArchonLeader(Signal[] signals) {
-        try {
-            rc.broadcastMessageSignal(ELECTION_SIGNAL_1, ELECTION_SIGNAL_2, TRANSMISSION_RANGE);
-        } catch (GameActionException e) {
-            e.printStackTrace();
-        }
-
-        Signal[] electionSignals = getAlliedComplexSignalsOnly(signals);
-        if (electionSignals.length == 0) {
-            // I am the leader!
-            rc.setIndicatorString(0, "I am the leader!");
-            role = LEADER;
-        } else {
-            role = FOLLOWER;
-
-            rc.setIndicatorString(0, "At your service m'lord!");
-            leaderID = electionSignals[0].getID();
-        }
-    }
 
     protected static void tryToCreateRobot(RobotType robotType) {
         if (rc.isCoreReady()) {
@@ -275,27 +148,19 @@ public class Archon extends RobotPlayer {
         }
     }
 
-    protected static Signal[] getAlliedComplexSignalsOnlyFromRobotWithId(Signal[] signals, int id) {
-        ArrayList<Signal> leaderSignals = new ArrayList<Signal>();
+    static Signal[] getAlliedComplexSignalsOnly(Signal[] signals) {
+        ArrayList<Signal> alliedSignals = new ArrayList<Signal>();
         for (Signal signal : signals) {
-            if (signal.getTeam() == myTeam && signal.getMessage() != null && signal.getID() == leaderID) {
-                leaderSignals.add(signal);
+            if (signal.getTeam() == myTeam && signal.getMessage() != null) {
+                alliedSignals.add(signal);
             }
         }
-        return leaderSignals.toArray(new Signal[leaderSignals.size()]);
+        return alliedSignals.toArray(new Signal[alliedSignals.size()]);
     }
 
-    protected static void healNearbyAllies() {
-        // Repair any wounded ally robots
-        if (rc.isCoreReady()) {
-            RobotInfo[] nearbyAlliedRobots = rc.senseNearbyRobots(attackRadius, myTeam);
-            if (nearbyAlliedRobots.length > 0) {
-                try {
-                    rc.repair(getLocationPercentageOfRobotWithLowestHP(nearbyAlliedRobots));
-                } catch (GameActionException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
+    private static int getHeuristicScore(MapLocation target, MapLocation next) {
+        int distanceTo = 100 - next.distanceSquaredTo(target);
+        return distanceTo;
+
     }
 }

@@ -8,72 +8,72 @@ import java.util.HashSet;
 
 public class RobotPlayer {
 
-    protected static final Direction[] directions = {Direction.NORTH, Direction.NORTH_EAST, Direction.EAST, Direction.SOUTH_EAST,
+    static final Direction[] directions = {Direction.NORTH, Direction.NORTH_EAST, Direction.EAST, Direction.SOUTH_EAST,
             Direction.SOUTH, Direction.SOUTH_WEST, Direction.WEST, Direction.NORTH_WEST};
 
-    protected static final int[] possibleDirections = new int[]{0, 1, -1, 2, -2, 3, -3, 4};
+    static final int[] possibleDirections = new int[]{0, 1, -1, 2, -2, 3, -3, 4};
 
-    protected static final int ELECTION_SIGNAL_1 = 100;
-    protected static final int ELECTION_SIGNAL_2 = 100;
+    static final int ELECTION_SIGNAL_1 = 100;
+    static final int ELECTION_SIGNAL_2 = 100;
 
 
-    protected static final int PARTS_SIGNAL = 0;
-    protected static final int PARTS_AMOUNT = 1;
-    protected static final int NUETRAL_BOT_SIGNAL = 1;
-    protected static final int ENEMY_ARCHON_SIGNAL = 2;
-    protected static final int ZOMBIE_DEN_SIGNAL = 3;
+    static final int PARTS_SIGNAL = 0;
+    static final int PARTS_AMOUNT = 1;
+    static final int NUETRAL_BOT_SIGNAL = 1;
+    static final int ENEMY_ARCHON_SIGNAL = 2;
+    static final int ZOMBIE_DEN_SIGNAL = 3;
 
 
     static HashSet<Integer> VALID_SIGNAL_TYPES =
             new HashSet<Integer>(Arrays.asList(new Integer[]{PARTS_SIGNAL, NUETRAL_BOT_SIGNAL, ZOMBIE_DEN_SIGNAL}));
 
-    protected static int REPORT_TYPE_INDEX = 0;
-    protected static int REPORT_DATA_INDEX = 1;
+    static int REPORT_TYPE_INDEX = 0;
+    static int REPORT_DATA_INDEX = 1;
 
-    protected static int X_COORDINATE = 0;
-    protected static int Y_COORDINATE = 1;
+    static int X_COORDINATE = 0;
+    static int Y_COORDINATE = 1;
 
     // Lead archon command signals
-    protected static final int LEADER_COMMAND = 10;
-    protected static final int MUSTER_AT_LOCATION = 0;
+    static final int LEADER_COMMAND = 10;
+    static final int MUSTER_AT_LOCATION = 0;
 
 
 
-    protected static final int TRANSMISSION_RANGE = 1000;
+    static final int TRANSMISSION_RANGE = 1000;
 
     // Pre-define these for better readability
-    protected static final Direction EAST = Direction.EAST;
-    protected static final Direction WEST = Direction.WEST;
-    protected static final Direction SOUTH = Direction.SOUTH;
-    protected static final Direction NORTH = Direction.EAST;
-    protected static final Direction NORTH_EAST = Direction.NORTH_EAST;
-    protected static final Direction NORTH_WEST = Direction.NORTH_EAST;
-    protected static final Direction SOTH_EAST = Direction.SOUTH_EAST;
-    protected static final Direction SOUTH_WEST = Direction.SOUTH_WEST;
+    static final Direction EAST = Direction.EAST;
+    static final Direction WEST = Direction.WEST;
+    static final Direction SOUTH = Direction.SOUTH;
+    static final Direction NORTH = Direction.EAST;
+    static final Direction NORTH_EAST = Direction.NORTH_EAST;
+    static final Direction NORTH_WEST = Direction.NORTH_EAST;
+    static final Direction SOTH_EAST = Direction.SOUTH_EAST;
+    static final Direction SOUTH_WEST = Direction.SOUTH_WEST;
 
-    protected static final RobotType ARCHON = RobotType.ARCHON;
-    protected static final RobotType SOLDIER = RobotType.SOLDIER;
-    protected static final RobotType TURRET = RobotType.TURRET;
-    protected static final RobotType GUARD = RobotType.GUARD;
-    protected static final RobotType VIPER = RobotType.VIPER;
-    protected static final RobotType TTM = RobotType.TTM;
-    protected static final RobotType SCOUT = RobotType.SCOUT;
+    static final RobotType ARCHON = RobotType.ARCHON;
+    static final RobotType SOLDIER = RobotType.SOLDIER;
+    static final RobotType TURRET = RobotType.TURRET;
+    static final RobotType GUARD = RobotType.GUARD;
+    static final RobotType VIPER = RobotType.VIPER;
+    static final RobotType TTM = RobotType.TTM;
+    static final RobotType SCOUT = RobotType.SCOUT;
 
-    protected static MapLocation spawnLocation;
+    static MapLocation spawnLocation;
 
-    protected static RobotController rc = null;
-    protected static Team myTeam = null;
-    protected static Team enemyTeam = null;
-    protected static RobotType myType = null;
-    protected static int attackRadius = 0;
-    protected static int mySensorRadius = 0;
+    static RobotController rc = null;
+    static Team myTeam = null;
+    static Team enemyTeam = null;
+    static RobotType myType = null;
+    static int attackRadius = 0;
+    static int mySensorRadius = 0;
 
-    protected static int roundNumber;
+    static int roundNumber;
 
-    protected static ArrayList<MapLocation> pastLocations = new ArrayList<MapLocation>();
+    static ArrayList<MapLocation> pastLocations = new ArrayList<MapLocation>();
 
     // Things that will change and need to be re-updated every round.
-    protected static MapLocation myLocation;
+    static MapLocation myLocation;
 
     public static void run(RobotController robotController) {
 
@@ -93,15 +93,16 @@ public class RobotPlayer {
                     Archon.playTurn();
                 } else if (myType == SCOUT) {
                     Scout.playTurn();
-                } else if (myType == RobotType.SOLDIER) {
+                } else if (myType == SOLDIER) {
                     Soldier.playTurn();
-                } else if (myType == RobotType.TURRET) {
+                } else if (myType == TURRET || myType == TTM) {
                     Turret.playTurn();
-                } else if (myType == RobotType.TTM) {
+                } else if (myType == VIPER) {
                     Soldier.playTurn();
-                } else if (myType == RobotType.VIPER) {
+                } else if (myType == GUARD) {
                     Soldier.playTurn();
                 }
+
                 Clock.yield();
             }
         } catch (Exception e) {
@@ -109,7 +110,7 @@ public class RobotPlayer {
         }
     }
 
-    protected static void makeBestFirstMove(Direction desiredDirection) {
+    static void makeBestFirstMove(Direction desiredDirection) {
         for (int i : possibleDirections) {
             Direction candidateDirection = directions[(desiredDirection.ordinal() + i + 8) % 8];
             if (rc.canMove(candidateDirection)){
@@ -123,7 +124,7 @@ public class RobotPlayer {
         }
     }
 
-    protected static void makeBestFirstMoveAndClearRubble(Direction desiredDirection){
+    static void makeBestFirstMoveAndClearRubble(Direction desiredDirection){
         for (int i : possibleDirections) {
             Direction candidateDirection = directions[(desiredDirection.ordinal() + i + 8) % 8];
             if (rc.canMove(candidateDirection) && ! pastLocations.contains(myLocation.add(candidateDirection))){
@@ -150,7 +151,7 @@ public class RobotPlayer {
         }
     }
 
-    protected static MapLocation getLocationPercentageOfRobotWithLowestHP(RobotInfo[] robotInfos) {
+    static MapLocation getLocationPercentageOfRobotWithLowestHP(RobotInfo[] robotInfos) {
         MapLocation locationWithLowestHealthRobot = null;
         double lowestHP = 999999.0;
         for (RobotInfo robotInfo : robotInfos) {
@@ -162,24 +163,24 @@ public class RobotPlayer {
         return locationWithLowestHealthRobot;
     }
 
-    protected static int numberOfRobotsAdjacentToMe() {
+    static int numberOfRobotsAdjacentToMe() {
         RobotInfo[] nearbyRobots = rc.senseNearbyRobots(1, myTeam);
         return nearbyRobots.length;
     }
 
-    protected static boolean isAfterEarlyGame(){
+    static boolean isAfterEarlyGame(){
         if (rc.getRoundNum() > 200){
             return true;
         }
         return false;
     }
 
-    protected static void setCommonInfoForCurrentRound() {
+    static void setCommonInfoForCurrentRound() {
         myLocation = rc.getLocation();
         roundNumber = rc.getRoundNum();
     }
 
-    protected static MapLocation findLocationWithMostParts(int radiusToSearchForParts) {
+    static MapLocation findLocationWithMostParts(int radiusToSearchForParts) {
         MapLocation[] locationsToCheckForParts = myLocation.getAllMapLocationsWithinRadiusSq(myLocation,
                                                                                             radiusToSearchForParts);
 
@@ -202,7 +203,7 @@ public class RobotPlayer {
         return locationWithMostParts;
     }
 
-    protected static Signal[] getAlliedSimpleSignalsOnly() {
+    static Signal[] getAlliedSimpleSignalsOnly() {
         Signal[] signals = rc.emptySignalQueue();
         ArrayList<Signal> alliedSignals = new ArrayList<Signal>();
         for (Signal signal : signals) {
@@ -213,7 +214,7 @@ public class RobotPlayer {
         return alliedSignals.toArray(new Signal[alliedSignals.size()]);
     }
 
-    protected static Signal[] getAlliedComplexSignalsOnly(Signal[] signals) {
+    static Signal[] getAlliedComplexSignalsOnly(Signal[] signals) {
         ArrayList<Signal> alliedSignals = new ArrayList<Signal>();
         for (Signal signal : signals) {
             if (signal.getTeam() == myTeam && signal.getMessage() != null) {
@@ -223,7 +224,7 @@ public class RobotPlayer {
         return alliedSignals.toArray(new Signal[alliedSignals.size()]);
     }
 
-    protected static RobotInfo[] getAllHostilesWithinRange(int radius) {
+    static RobotInfo[] getAllHostilesWithinRange(int radius) {
         RobotInfo[] enemiesWithinRange = rc.senseNearbyRobots(attackRadius, enemyTeam);
         RobotInfo[] zombiesWithinRange = rc.senseNearbyRobots(attackRadius, Team.ZOMBIE);
         ArrayList<RobotInfo> allEnemiesWithinRange = new ArrayList<RobotInfo>();

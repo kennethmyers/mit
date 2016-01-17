@@ -6,7 +6,7 @@ import battlecode.common.RobotInfo;
 
 public class Turret extends RobotPlayer {
 
-    protected static void playTurn() {
+     static void playTurn() {
 
         // Just attack!
         RobotInfo[] enemiesInRange = getAllHostilesWithinRange(attackRadius);

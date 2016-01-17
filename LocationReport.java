@@ -9,7 +9,7 @@ public class LocationReport {
     private MapLocation reportLocation;
     private int reportType;
     private int reportData; // Contextual, meaning depends on ReportType
-    private int roundNumber; //When this report was filed.\
+    private int roundNumber; //When this report was filed.
 
     private boolean valid;
 

@@ -6,76 +6,40 @@ import battlecode.common.*;
 import java.util.ArrayList;
 
 public class Scout extends RobotPlayer {
-    static ArrayList<MapLocation> reportedLocations = new ArrayList<MapLocation>();
-    static ArrayList<MapLocation> previousLocaions = new ArrayList<MapLocation>();
-    static Direction currentDirection = null;
+
+    static boolean firstTurn = true;
+    static MapLocation spawnLocation = null;
+    ArrayList[][] table = new ArrayList[10][10];
+    static ArrayList<MapLocation> rubbleLocations = new ArrayList<>();
 
     protected static void playTurn() {
+        if (firstTurn) {
+            firstTurn = false;
+            spawnLocation = myLocation;
 
-        if (previousLocaions.size() == 0) {
-            currentDirection = directions[(rc.getRoundNum() + rc.getID()) % 8];
-            makeBestFirstMove(currentDirection);
-            previousLocaions.add(myLocation);
-        } else {
-            MapLocation locationToCheck = myLocation.add(currentDirection);
-            for (int i = 0; i < mySensorRadius - 1; i++) {
-                try {
-                    if (! rc.onTheMap(locationToCheck)) {
-                        if (roundNumber % 2 == 0) {
-                            currentDirection = currentDirection.rotateLeft().rotateLeft();
-                        } else {
-                            currentDirection = currentDirection.rotateRight().rotateRight();
+        }
+
+        MapLocation[] locations = myLocation.getAllMapLocationsWithinRadiusSq(myLocation, 10);
+        for (MapLocation location : locations) {
+            try {
+                if (! rubbleLocations.contains(location) && rc.onTheMap(location)) {
+                    rubbleLocations.add(location);
+                    if (rc.senseRubble(location) > 0) {
+                        Message message = new Message(Message.Command.RUBBLE, location);
+                        try {
+                            rc.broadcastMessageSignal(message.toSignalPayload()[0], message.toSignalPayload()[1], 200);
+                        } catch (GameActionException e) {
+                            e.printStackTrace();
                         }
-                    } else {
-                        locationToCheck = locationToCheck.add(currentDirection);
                     }
-                } catch (GameActionException e) {
-                    e.printStackTrace();
                 }
-            }
-            makeBestFirstMove(currentDirection);
-        }
-
-        MapLocation[] locationsToScan = myLocation.getAllMapLocationsWithinRadiusSq(myLocation, mySensorRadius);
-        for (MapLocation location : locationsToScan) {
-            if (rc.senseParts(location) > 0 && ! reportedLocations.contains(location)) {
-                try {
-                    rc.broadcastMessageSignal(PARTS_SIGNAL, (int) rc.senseParts(location), TRANSMISSION_RANGE);
-                    rc.broadcastMessageSignal(location.x, location.y, TRANSMISSION_RANGE);
-                } catch (GameActionException e) {
-                    e.printStackTrace();
-                }
-                reportedLocations.add(location);
+            } catch (GameActionException e) {
+                e.printStackTrace();
             }
         }
-
-        RobotInfo[] neutralRobots = rc.senseNearbyRobots(mySensorRadius, Team.NEUTRAL);
-        for (RobotInfo robotInfo : neutralRobots) {
-            MapLocation location = robotInfo.location;
-            if (! reportedLocations.contains(location)) {
-                try{
-                    rc.broadcastMessageSignal(NUETRAL_BOT_SIGNAL, robotInfo.type.ordinal(), TRANSMISSION_RANGE);
-                    rc.broadcastMessageSignal(location.x, location.y, TRANSMISSION_RANGE);
-                } catch (GameActionException e) {
-                    e.printStackTrace();
-                }
-                reportedLocations.add(location);
-            }
-        }
-
-        RobotInfo[] enemyRobots = rc.senseNearbyRobots(mySensorRadius, Team.ZOMBIE);
-        for (RobotInfo robotInfo : enemyRobots) {
-            MapLocation location = robotInfo.location;
-            if (! reportedLocations.contains(location) && robotInfo.type == RobotType.ZOMBIEDEN) {
-                try{
-                    rc.setIndicatorString(0, String.format("ZOMBIE DEN FOUND at %d,%d", location.x, location.y));
-                    rc.broadcastMessageSignal(ZOMBIE_DEN_SIGNAL, robotInfo.ID, TRANSMISSION_RANGE);
-                    rc.broadcastMessageSignal(location.x, location.y, TRANSMISSION_RANGE);
-                } catch (GameActionException e) {
-                    e.printStackTrace();
-                }
-                reportedLocations.add(location);
-            }
-        }
+        rc.setIndicatorString(0, String.format("%d", rubbleLocations.size()));
+        rc.setIndicatorString(1, String.format("%d", GameConstants.MAP_MAX_HEIGHT));
+        rc.setIndicatorString(2, String.format("%1$,.2f", GameConstants.RUBBLE_OBSTRUCTION_THRESH));
     }
+
 }
