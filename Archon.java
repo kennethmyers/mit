@@ -2,17 +2,19 @@ package team168;
 
 
 import battlecode.common.*;
-import scala.Array;
-import scala.Int;
 
 import java.util.*;
 
 public class Archon extends RobotPlayer {
 
-    static ArrayList<MapLocation> maps = new ArrayList<>();
+    static ArrayList<MapLocation> rubbleLocations = new ArrayList<>();
+    static ArrayList<MapLocation> partsLocations = new ArrayList<>();
 
-    static final MapLocation testTargetLocation = new MapLocation(435, 154);
+    static final MapLocation targetLocation = new MapLocation(160, 387);
     static Stack<MapLocation> path = new Stack<>();
+    static int[] zombieSpawnRounds;
+
+    static boolean activeOrder = true;
 
 
     private static int numberOfAlliedArchons;
@@ -26,17 +28,37 @@ public class Archon extends RobotPlayer {
             MapLocation[] enemyArchonLocations = rc.getInitialArchonLocations(enemyTeam);
 
             ZombieSpawnSchedule zombieSpawnSchedule = rc.getZombieSpawnSchedule();
+            zombieSpawnRounds = zombieSpawnSchedule.getRounds();
+
         }
 
         Signal[] signals = rc.emptySignalQueue();
         Signal[] stuff = getAlliedComplexSignalsOnly(signals);
         for (Signal signal : stuff) {
             Message message = new Message(signal.getMessage());
-            if (!maps.contains(message.target)) {
-                maps.add(message.target);
+            if (message.getMessageType() == Message.MessageType.RUBBLE_LOCATION_DATA) {
+                if (! rubbleLocations.contains(message.getLocation())) {
+                    rubbleLocations.add(message.getLocation());
+                }
+            } else if (message.getMessageType() == Message.MessageType.PARTS_LOCATION_DATA) {
+                if (! partsLocations.contains(message.getLocation())) {
+                    partsLocations.add(message.getLocation());
+                }
             }
 
         }
+
+       /* for (MapLocation location : partsLocations){
+            if (myLocation.isAdjacentTo(location) && rc.senseParts(location) > 0) {
+                if (rc.isCoreReady()) {
+                    try {
+                        rc.move(myLocation.directionTo(location));
+                    } catch (GameActionException e) {
+                        e.printStackTrace();
+                    }
+
+                }
+        }*/
 
 
         /*for next in graph.neighbors(current):
@@ -49,24 +71,24 @@ public class Archon extends RobotPlayer {
         */
 
         // A*
-        if (roundNumber > 35 && path.size() == 0) {
+        if (activeOrder) {
             HashMap<MapLocation, Integer> frontier = new HashMap<MapLocation, Integer>();
             frontier.put(myLocation, 0);
             HashMap<MapLocation, MapLocation> cameFrom = new HashMap<MapLocation, MapLocation>();
             HashMap<MapLocation, Integer> costSoFar = new HashMap<MapLocation, Integer>();
             cameFrom.put(myLocation, null);
             costSoFar.put(myLocation, new Integer(0));
-            while (! frontier.isEmpty()) {
+            while (! frontier.isEmpty() || ! (Clock.getBytecodesLeft() < 5000)) {
                 rc.setIndicatorString(0, String.format("%d", cameFrom.size()));
 
                 MapLocation current = getMaxValue(frontier);
                 frontier.remove(current);
                 System.out.println(current);
-                if (current.equals(testTargetLocation)) {
+                if (current.equals(targetLocation)) {
                     System.out.println("Found target!");
                     System.out.println("Bytecode used: " + Clock.getBytecodeNum());
                     System.out.println("Came from " + cameFrom);
-                    MapLocation test = cameFrom.get(testTargetLocation);
+                    MapLocation test = cameFrom.get(targetLocation);
 
                     while (test != null) {
                         System.out.println("Backtracking: " + test);
@@ -81,20 +103,24 @@ public class Archon extends RobotPlayer {
                 }
 
                 ArrayList<MapLocation> adjacent = new ArrayList<MapLocation>(Arrays.asList(MapLocation.getAllMapLocationsWithinRadiusSq(current, 1)));
-                adjacent.removeAll(maps);
+                for (MapLocation location : adjacent) {
+
+                }
+                adjacent.removeAll(rubbleLocations);
                 adjacent.remove(current);
                 rc.setIndicatorString(1, String.format("%d", adjacent.size()));
 
                 for (MapLocation next : adjacent) {
+
                     //rc.setIndicatorString(2, "" + next);
-                    //if (!maps.contains(next)) {
+                    //if (!rubbleLocations.contains(next)) {
                     System.out.println("Checkout out this location " + next);
                     Integer newCost = costSoFar.get(current) - 1; // Rubble clear penalty here
                     System.out.println("new Cost " + newCost);
                     rc.setIndicatorString(2, String.format("%d", newCost ));
                     if (! costSoFar.containsKey(next) || newCost > costSoFar.get(next)) {
                         costSoFar.put(next, newCost);
-                        Integer priority = newCost + getHeuristicScore(testTargetLocation, next);
+                        Integer priority = newCost + getHeuristicScore(targetLocation, next);
                         System.out.println("New Priority: " + priority);
                         frontier.put(next, priority);
                         cameFrom.put(next, current);
@@ -115,7 +141,8 @@ public class Archon extends RobotPlayer {
 
         }
 
-        rc.setIndicatorString(1, String.format("Dank locations %d", maps.size()));
+        rc.setIndicatorString(0, String.format("Rubble locations %d", rubbleLocations.size()));
+        rc.setIndicatorString(1, String.format("Parts locations %d", partsLocations.size()));
     }
 
     protected static MapLocation getMaxValue(HashMap<MapLocation, Integer> hashMap) {
