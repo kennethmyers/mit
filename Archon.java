@@ -14,7 +14,7 @@ public class Archon extends RobotPlayer {
     static Stack<MapLocation> path = new Stack<>();
     static int[] zombieSpawnRounds;
 
-    static boolean activeOrder = true;
+    static boolean activeOrder = false;
 
 
     private static int numberOfAlliedArchons;
@@ -29,7 +29,7 @@ public class Archon extends RobotPlayer {
 
             ZombieSpawnSchedule zombieSpawnSchedule = rc.getZombieSpawnSchedule();
             zombieSpawnRounds = zombieSpawnSchedule.getRounds();
-
+            System.out.println("First zombie wave at: " + zombieSpawnRounds[0]);
         }
 
         Signal[] signals = rc.emptySignalQueue();
@@ -48,17 +48,30 @@ public class Archon extends RobotPlayer {
 
         }
 
-       /* for (MapLocation location : partsLocations){
-            if (myLocation.isAdjacentTo(location) && rc.senseParts(location) > 0) {
-                if (rc.isCoreReady()) {
-                    try {
-                        rc.move(myLocation.directionTo(location));
-                    } catch (GameActionException e) {
-                        e.printStackTrace();
-                    }
+        if (rc.getTeamParts() > 100) {
+            if (roundNumber % 2 == 0) {
+                tryToCreateRobot(GUARD);
+            } else if (roundNumber % 3 == 0) {
+                tryToCreateRobot(SOLDIER);
+            }
 
+        } else {
+            for (MapLocation location : partsLocations) {
+                if (myLocation.isAdjacentTo(location) && rc.senseParts(location) > 0) {
+                    if (rc.isCoreReady()) {
+                        try {
+                            rc.move(myLocation.directionTo(location));
+                        } catch (GameActionException e) {
+                            e.printStackTrace();
+                        }
+
+                    }
                 }
-        }*/
+            }
+        }
+
+
+
 
 
         /*for next in graph.neighbors(current):
@@ -134,7 +147,13 @@ public class Archon extends RobotPlayer {
 
         if (rc.isCoreReady() && path.size() > 0) {
             try {
-                rc.move(myLocation.directionTo(path.pop()));
+                Direction direction = myLocation.directionTo(path.peek());
+                if (rc.senseRubble(myLocation.add(direction)) > GameConstants.RUBBLE_OBSTRUCTION_THRESH) {
+                    rc.clearRubble(direction);
+                } else {
+                    path.pop();
+                    rc.move(direction);
+                }
             } catch (GameActionException e) {
                 e.printStackTrace();
             }

@@ -94,13 +94,13 @@ public class RobotPlayer {
                 } else if (myType == SCOUT) {
                     Scout.playTurn();
                 } else if (myType == SOLDIER) {
-                    Soldier.playTurn();
+                    Guard.playTurn();
                 } else if (myType == TURRET || myType == TTM) {
                     Turret.playTurn();
                 } else if (myType == VIPER) {
                     Soldier.playTurn();
                 } else if (myType == GUARD) {
-                    Soldier.playTurn();
+                    Guard.playTurn();
                 }
 
                 Clock.yield();

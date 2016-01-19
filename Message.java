@@ -10,7 +10,7 @@ import battlecode.common.Team;
 public class Message {
 
     static private final int MESSAGE_TYPE_START = 0;
-    static private final int MESSAGE_TYPE_LENGTH = 10;
+    static private final int MESSAGE_TYPE_LENGTH = 5;
 
     static private final int TARGET_X_START = MESSAGE_TYPE_START + MESSAGE_TYPE_LENGTH;
     static private final int TARGET_X_LENGTH = 10;
@@ -34,6 +34,7 @@ public class Message {
     static private final int PARTS_LENGTH = 10;
 
     public enum MessageType {
+        COMPACT_RUBBLE_LOCATION_DATA,
         RUBBLE_LOCATION_DATA,
         ROBOT_LOCATION_DATA,
         PARTS_LOCATION_DATA,
